@@ -11,35 +11,35 @@
         * { font-family: 'Tajawal', sans-serif; }
         body { background: #06070a; color: white; overflow: hidden; }
         .glass-bg { background: rgba(11, 12, 20, 0.8); backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.05); }
-        .msg { max-width: 80%; padding: 15px 20px; border-radius: 22px; margin-bottom: 12px; font-size: 0.95rem; }
+        .msg { max-width: 80%; padding: 15px 20px; border-radius: 22px; margin-bottom: 12px; font-size: 0.95rem; line-height: 1.6; }
         .msg-admin { background: #1a1d2e; border-right: 4px solid #fbbf24; align-self: flex-start; }
         .msg-user { background: #fbbf24; color: #000; font-weight: 700; align-self: flex-end; border-bottom-left-radius: 5px; }
+        .msg-system { background: rgba(251, 191, 36, 0.05); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.2); align-self: center; text-align: center; font-size: 0.8rem; width: 100%; max-width: 100%; border-radius: 12px; }
         .ws-btn { background: #fbbf24; color: #000; transition: 0.3s; font-weight: 900; }
         .ws-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(251, 191, 36, 0.2); }
+        #msgList::-webkit-scrollbar { width: 5px; }
+        #msgList::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
     </style>
 </head>
 <body class="flex flex-col h-screen">
     <script>
-        // التحقق من تسجيل الدخول
         const sessionData = localStorage.getItem('wasata_session');
-        if (!sessionData) {
-            window.location.href = "https://blaster-tool.xyz/login.html";
-        }
+        if (!sessionData) { window.location.href = "https://blaster-tool.xyz/login.html"; }
     </script>
 
     <nav class="p-5 flex justify-between items-center glass-bg border-b border-white/5">
         <div class="flex items-center gap-4">
-            <div class="text-2xl font-black text-yellow-500 tracking-tighter">Wsata</div>
+            <div class="text-2xl font-black text-yellow-500 tracking-tighter italic">Wsata</div>
             <div id="statusBadge" class="text-[10px] bg-yellow-500/10 text-yellow-500 px-3 py-1 rounded-full border border-yellow-500/20 font-bold">بانتظار النظام</div>
         </div>
         <div class="text-xs text-gray-400 font-bold">جميع الحقوق محفوظة لـ Wsata</div>
     </nav>
 
-    <div class="flex-1 max-w-4xl mx-auto w-full p-4 flex flex-col">
+    <div class="flex-1 max-w-4xl mx-auto w-full p-4 flex flex-col overflow-hidden">
         <!-- نموذج البداية -->
         <div id="setup" class="bg-[#0b0c14] p-10 rounded-[35px] border border-white/5 mt-10 shadow-2xl">
             <h2 class="text-3xl font-black text-center mb-8">فتح تذكرة تعميد</h2>
-            <input type="text" id="product" placeholder="ما هي السلعة أو الخدمة؟" class="w-full bg-black/40 border border-white/10 p-5 rounded-2xl mb-6 outline-none focus:border-yellow-500 text-lg">
+            <input type="text" id="product" placeholder="ما هي السلعة أو الخدمة؟" class="w-full bg-black/40 border border-white/10 p-5 rounded-2xl mb-6 outline-none focus:border-yellow-500 text-lg transition">
             <button onclick="createTicket()" class="ws-btn w-full py-5 rounded-2xl text-xl">تأكيد وفتح الطلب</button>
         </div>
 
@@ -47,17 +47,18 @@
         <div id="chatArea" class="hidden flex-1 flex flex-col overflow-hidden">
             <div id="msgList" class="flex-1 overflow-y-auto p-4 flex flex-col"></div>
             
-            <div id="payBox" class="hidden p-6 bg-yellow-500/10 border border-yellow-500/20 rounded-3xl mb-4 flex justify-between items-center">
+            <!-- بار الدفع الأصفر -->
+            <div id="payBox" class="hidden p-6 bg-yellow-500/10 border border-yellow-500/20 rounded-3xl mb-4 flex justify-between items-center animate-pulse">
                 <div>
-                    <span class="text-[10px] text-yellow-500 font-black block mb-1">المبلغ المطلوب سداده</span>
-                    <span id="totalDisplay" class="text-2xl font-black">0.00 SAR</span>
+                    <span class="text-[10px] text-yellow-500 font-black block mb-1 uppercase tracking-widest">المبلغ المطلوب سداده</span>
+                    <span id="totalDisplay" class="text-3xl font-black tracking-tighter">0.00 SAR</span>
                 </div>
-                <button onclick="goPay()" class="ws-btn px-10 py-4 rounded-xl text-sm">ادفع الآن 💳</button>
+                <button onclick="goPay()" class="ws-btn px-10 py-5 rounded-2xl text-sm shadow-xl">ادفع الآن 💳</button>
             </div>
 
             <div class="p-3 glass-bg rounded-2xl flex gap-3 mb-2">
-                <input id="uInput" type="text" placeholder="اكتب للوسيط..." class="flex-1 bg-transparent outline-none px-4">
-                <button onclick="sendMsg()" class="ws-btn px-8 py-3 rounded-xl text-sm italic">إرسال</button>
+                <input id="uInput" type="text" placeholder="اكتب للوسيط..." class="flex-1 bg-transparent outline-none px-4 text-sm" onkeypress="if(event.key==='Enter') sendMsg()">
+                <button onclick="sendMsg()" class="ws-btn px-8 py-3 rounded-xl text-sm font-black italic">إرسال</button>
             </div>
         </div>
     </div>
@@ -72,30 +73,53 @@
         function createTicket() {
             const prod = document.getElementById('product').value;
             if(!prod) return alert("اكتب تفاصيل الطلب");
-            db.ref('tickets/'+uKey).set({ userEmail: user.email, product: prod, status: 'انتظار الوسيط', amount: 0, fee: 0 });
+            db.ref('tickets/'+uKey).set({ 
+                userEmail: user.email, 
+                product: prod, 
+                status: 'بانتظار مراجعة الوسيط', 
+                amount: 0, 
+                fee: 0,
+                action: 'idle'
+            });
         }
 
         if(uKey) {
             db.ref('tickets/'+uKey).on('value', snap => {
                 const d = snap.val();
-                if(!d) return;
+                if(!d) {
+                    document.getElementById('setup').style.display = 'block';
+                    document.getElementById('chatArea').classList.add('hidden');
+                    return;
+                };
+
                 document.getElementById('setup').style.display = 'none';
                 document.getElementById('chatArea').classList.remove('hidden');
                 document.getElementById('statusBadge').innerText = d.status;
 
-                if(d.action === 'showPay' && d.status !== 'تم الدفع من الطرف الأخر') {
-                    // عرض زر ادفع الآن
-                    } else {
-                    // إخفاء قسم الدفع
+                // --- منطق عرض/إخفاء بار الدفع ---
+                const payBox = document.getElementById('payBox');
+                // يظهر البار فقط إذا كان الأدمن طلب الدفع (showPay) وكان الدافع هو العميل (client) والحالة ليست "تم الدفع"
+                if(d.action === 'showPay' && d.paidBy === 'client' && d.status !== 'تم الدفع من الطرف الأخر') {
+                    payBox.classList.remove('hidden');
+                    const total = (parseFloat(d.amount || 0) + parseFloat(d.fee || 0)).toFixed(2);
+                    document.getElementById('totalDisplay').innerText = total + " SAR";
+                } else {
+                    payBox.classList.add('hidden');
                 }
 
+                // عرض الرسائل
                 const list = document.getElementById('msgList');
                 list.innerHTML = "";
                 if(d.messages) {
                     Object.values(d.messages).forEach(m => {
                         const div = document.createElement('div');
-                        div.className = `msg ${m.sender === 'admin' ? 'msg-admin' : 'msg-user'}`;
-                        div.innerHTML = m.sender === 'admin' ? `<span class="text-[9px] text-yellow-500 font-black block mb-1">وسيط معتمد ✓</span>${m.text}` : m.text;
+                        if (m.system) {
+                            div.className = "msg msg-system";
+                            div.innerText = m.text;
+                        } else {
+                            div.className = `msg ${m.sender === 'admin' ? 'msg-admin' : 'msg-user'}`;
+                            div.innerHTML = m.sender === 'admin' ? `<span class="text-[9px] text-yellow-500 font-black block mb-1">وسيط معتمد ✓</span>${m.text}` : m.text;
+                        }
                         list.appendChild(div);
                     });
                     list.scrollTop = list.scrollHeight;
@@ -106,12 +130,14 @@
         function sendMsg() {
             const inp = document.getElementById('uInput');
             if(!inp.value.trim()) return;
-            db.ref('tickets/'+uKey+'/messages').push({ text: inp.value, sender: 'user' });
+            db.ref('tickets/'+uKey+'/messages').push({ text: inp.value, sender: 'user', time: Date.now() });
             inp.value = "";
         }
 
         function goPay() {
-            window.location.href = `payment.html?ticket=${uKey}&total=${parseFloat(document.getElementById('totalDisplay').innerText)}`;
+            // التوجيه للرابط المطلوب مع تمرير التذكرة والمبلغ في الرابط
+            const total = document.getElementById('totalDisplay').innerText.split(' ')[0];
+            window.location.href = `https://wsata.store/payment.html?ticket=${uKey}&total=${total}`;
         }
     </script>
 </body>
