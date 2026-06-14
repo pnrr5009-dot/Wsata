@@ -56,8 +56,8 @@
 
             <!-- Input -->
             <div class="p-6 bg-black border-t border-white/5 flex gap-3">
-                <input id="msg" type="text" class="flex-1 bg-white/5 p-4 rounded-xl outline-none focus:bg-white/10 transition" placeholder="اكتب ردك هنا...">
-                <button onclick="send()" class="bg-yellow-500 text-black px-10 rounded-xl font-bold hover:scale-105 active:scale-95 transition">إرسال</button>
+                <input id="msg" type="text" class="flex-1 bg-white/5 p-4 rounded-xl outline-none" placeholder="اكتب ردك هنا...">
+                <button onclick="send()" class="bg-yellow-500 text-black px-10 rounded-xl font-bold">إرسال</button>
             </div>
         </div>
     </div>
@@ -75,7 +75,6 @@
             document.getElementById('lblMediator').className = who === 'mediator' ? 'active' : 'inactive';
         }
 
-        // جلب الرسائل والتذاكر
         db.ref('tickets').on('value', snap => {
             const list = document.getElementById('tkList');
             list.innerHTML = "";
@@ -83,10 +82,7 @@
                 const d = t.val();
                 const div = document.createElement('div');
                 div.className = `t-card ${sel === t.key ? 'selected' : ''}`;
-                div.innerHTML = `
-                    <div class="font-bold text-sm text-gray-200">${d.userEmail || 'بدون إيميل'}</div>
-                    <div class="text-[10px] text-gray-500 mt-1">${d.product || 'منتج غير محدد'}</div>
-                `;
+                div.innerHTML = `<div class="font-bold text-sm">${d.userEmail}</div><div class="text-[10px] text-gray-500">${d.product}</div>`;
                 div.onclick = () => { sel = t.key; load(t.key, d); };
                 list.appendChild(div);
             });
@@ -95,9 +91,8 @@
         function load(k, d) {
             document.getElementById('main').classList.remove('hidden');
             document.getElementById('uInfo').innerText = d.userEmail;
-            
             const chatRef = db.ref('tickets/'+k+'/messages');
-            chatRef.off(); // إزالة المستمعات القديمة
+            chatRef.off();
             chatRef.on('value', ms => {
                 const cv = document.getElementById('chat'); cv.innerHTML = "";
                 ms.forEach(m => {
@@ -107,7 +102,7 @@
                         div.className = 'sys-msg';
                         div.innerText = v.text;
                     } else {
-                        div.className = `p-3 rounded-2xl max-w-[80%] text-sm ${v.sender === 'admin' ? 'bg-yellow-500 text-black self-start font-medium' : 'bg-white/5 text-white self-end border border-white/5'}`;
+                        div.className = `p-3 rounded-xl max-w-[80%] text-sm ${v.sender === 'admin' ? 'bg-yellow-500 text-black self-start' : 'bg-white/5 self-end'}`;
                         div.innerText = v.text;
                     }
                     cv.appendChild(div);
@@ -117,53 +112,44 @@
         }
 
         function upd() {
-            if(!sel) return;
-            db.ref('tickets/'+sel).update({
-                amount: document.getElementById('a').value,
-                fee: document.getElementById('f').value,
-                status: 'تم تحديد التكلفة'
-            });
+            db.ref('tickets/'+sel).update({ amount: document.getElementById('a').value, fee: document.getElementById('f').value, status: 'تم تحديد التكلفة' });
         }
 
         function askPay() {
-            if(!sel) return;
-            const tRef = db.ref('tickets/'+sel);
-            const mRef = db.ref('tickets/'+sel+'/messages');
-
+            // سحب القيم الحالية للمبلغ والعمولة للتأكد من إرسالها للعميل
+            const amount = document.getElementById('a').value;
+            const fee = document.getElementById('f').value;
+            
             if (payer === 'client') {
-                // العميل يدفع: تظهر له خانة "ادفع الآن"
-                tRef.update({ 
+                // العميل يدفع: نرسل showPay ونحدد أن الدافع هو العميل
+                db.ref('tickets/'+sel).update({ 
                     action: 'showPay', 
                     status: 'بانتظار التحويل المالي',
-                    paidBy: 'client' 
+                    paidBy: 'client',
+                    amount: amount,
+                    fee: fee
                 });
             } else {
-                // الوسيط يدفع: تخفي خانة الدفع وتظهر رسالة "تم الدفع من الطرف الأخر"
-                tRef.update({ 
-                    action: 'hidePay', // كود العميل يجب أن يتعرف على هذا الأمر ليخفي الزر
-                    status: 'تم الدفع من الطرف الأخر',
+                // الوسيط يدفع: نرسل hidePay ونضيف رسالة نظامية
+                db.ref('tickets/'+sel).update({ 
+                    action: 'hidePay', 
+                    status: 'بانتظار التحويل المالي',
                     paidBy: 'mediator'
                 });
-                mRef.push({ text: 'تم الدفع من الطرف الأخر ✅', sender: 'admin', system: true });
+                db.ref('tickets/'+sel+'/messages').push({ text: 'تم الدفع من الطرف الأخر ✅', sender: 'admin', system: true });
             }
         }
 
         function delTicket() {
-            if(!sel) return;
-            if(confirm('هل أنت متأكد من حذف هذه التذكرة نهائياً؟')) {
-                db.ref('tickets/'+sel).remove().then(() => {
-                    document.getElementById('main').classList.add('hidden');
-                    sel = null;
-                });
+            if(confirm('حذف التذكرة؟')) {
+                db.ref('tickets/'+sel).remove();
+                document.getElementById('main').classList.add('hidden');
             }
         }
 
         function send() {
             const v = document.getElementById('msg').value;
-            if(v && sel) {
-                db.ref('tickets/'+sel+'/messages').push({ text: v, sender: 'admin', time: Date.now() });
-                document.getElementById('msg').value = "";
-            }
+            if(v) { db.ref('tickets/'+sel+'/messages').push({ text: v, sender: 'admin' }); document.getElementById('msg').value = ""; }
         }
     </script>
 </body>
