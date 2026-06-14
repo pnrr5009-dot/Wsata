@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>لوحة التحكم | Wsata Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <style>
+        body { background: #020306; color: white; display: flex; height: 100vh; font-family: sans-serif; }
+        .list-box { width: 350px; background: #080a12; border-left: 1px solid rgba(255,255,255,0.05); }
+        .t-card { background: rgba(255,255,255,0.03); border: 1px solid transparent; padding: 20px; cursor: pointer; border-radius: 12px; margin: 10px; transition: 0.2s; }
+        .t-card:hover { background: rgba(251, 191, 36, 0.05); }
+        .selected { border-color: #fbbf24; background: rgba(251, 191, 36, 0.08); }
+    </style>
+</head>
+<body>
+    <div class="list-box flex flex-col p-4">
+        <h1 class="text-xl font-black text-yellow-500 mb-6 px-2">Wsata Admin</h1>
+        <div id="tkList" class="flex-1 overflow-y-auto"></div>
+    </div>
+
+    <div class="flex-1 flex flex-col">
+        <div id="main" class="hidden flex-1 flex flex-col">
+            <div class="p-8 border-b border-white/5 flex justify-between items-center bg-white/2">
+                <div id="uInfo">--</div>
+                <div class="flex gap-3">
+                    <input type="number" id="a" placeholder="المبلغ" class="bg-black border border-white/10 p-2 w-24 rounded">
+                    <input type="number" id="f" placeholder="العمولة" class="bg-black border border-white/10 p-2 w-24 rounded">
+                    <button onclick="upd()" class="bg-green-600 px-4 rounded text-xs">تحديث التكلفة</button>
+                    <button onclick="askPay()" class="bg-yellow-500 text-black px-4 rounded text-xs font-black">طلب الدفع</button>
+                </div>
+            </div>
+            <div id="chat" class="flex-1 p-8 overflow-y-auto flex flex-col gap-3"></div>
+            <div class="p-6 bg-black flex gap-3">
+                <input id="msg" type="text" class="flex-1 bg-white/5 p-4 rounded-xl outline-none" placeholder="اكتب ردك...">
+                <button onclick="send()" class="bg-yellow-500 text-black px-10 rounded-xl font-bold">إرسال</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = { databaseURL: "https://wasata-af6ac-default-rtdb.europe-west1.firebasedatabase.app" };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        let sel = null;
+
+        db.ref('tickets').on('value', snap => {
+            const list = document.getElementById('tkList');
+            list.innerHTML = "";
+            snap.forEach(t => {
+                const d = t.val();
+                const div = document.createElement('div');
+                div.className = `t-card ${sel === t.key ? 'selected' : ''}`;
+                div.innerHTML = `<div class="font-bold text-sm">${d.userEmail}</div><div class="text-[10px] text-gray-500">${d.product}</div>`;
+                div.onclick = () => { sel = t.key; load(t.key, d); };
+                list.appendChild(div);
+            });
+        });
+
+        function load(k, d) {
+            document.getElementById('main').classList.remove('hidden');
+            document.getElementById('uInfo').innerText = d.userEmail;
+            db.ref('tickets/'+k+'/messages').on('value', ms => {
+                const cv = document.getElementById('chat'); cv.innerHTML = "";
+                ms.forEach(m => {
+                    const v = m.val();
+                    const div = document.createElement('div');
+                    div.className = `p-3 rounded-lg max-w-[70%] ${v.sender === 'admin' ? 'bg-yellow-500/10 border-r-2 border-yellow-500 self-start' : 'bg-white/5 self-end'}`;
+                    div.innerText = v.text;
+                    cv.appendChild(div);
+                });
+                cv.scrollTop = cv.scrollHeight;
+            });
+        }
+
+        function upd() { db.ref('tickets/'+sel).update({ amount: document.getElementById('a').value, fee: document.getElementById('f').value, status: 'تم تحديد التكلفة' }); }
+        function askPay() { db.ref('tickets/'+sel).update({ action: 'showPay', status: 'بانتظار التحويل المالي' }); }
+        function send() { const v = document.getElementById('msg').value; if(v) { db.ref('tickets/'+sel+'/messages').push({ text: v, sender: 'admin' }); document.getElementById('msg').value = ""; } }
+    </script>
+</body>
+</html>
