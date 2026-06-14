@@ -170,11 +170,11 @@
 
         // تحديث المبالغ في الواجهة
         function updateSummary() {
-            const vatVal = price * 0.15;
-            document.getElementById('subtotalDisplay').innerText = `£${price.toFixed(2)}`;
-            document.getElementById('subtotal2').innerText = `£${price.toFixed(2)}`;
-            document.getElementById('vat').innerText = `£${vatVal.toFixed(2)}`;
-            document.getElementById('totalFinal').innerText = `£${(price + vatVal).toFixed(2)}`;
+             const vatVal = price * 0.15;
+             document.getElementById('subtotalDisplay').innerText = `SAR ${price.toFixed(2)}`;
+             document.getElementById('subtotal2').innerText = `SAR ${price.toFixed(2)}`;
+             document.getElementById('vat').innerText = `SAR ${vatVal.toFixed(2)}`;
+             document.getElementById('totalFinal').innerText = `SAR ${(price + vatVal).toFixed(2)}`;
         }
         updateSummary();
 
