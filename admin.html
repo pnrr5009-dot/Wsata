@@ -12,6 +12,50 @@
         .t-card { background: rgba(255,255,255,0.03); border: 1px solid transparent; padding: 20px; cursor: pointer; border-radius: 12px; margin: 10px; transition: 0.2s; }
         .t-card:hover { background: rgba(251, 191, 36, 0.05); }
         .selected { border-color: #fbbf24; background: rgba(251, 191, 36, 0.08); }
+        /* Toggle switch */
+        .toggle-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px;
+            padding: 6px 14px;
+        }
+        .toggle-wrapper label {
+            font-size: 12px;
+            cursor: pointer;
+            padding: 6px 14px;
+            border-radius: 8px;
+            transition: 0.2s;
+            user-select: none;
+        }
+        .toggle-wrapper label.active {
+            background: #fbbf24;
+            color: black;
+            font-weight: bold;
+        }
+        .toggle-wrapper label.inactive {
+            color: #777;
+        }
+        .sys-msg {
+            background: rgba(251, 191, 36, 0.08);
+            border: 1px solid rgba(251, 191, 36, 0.2);
+            text-align: center;
+            font-size: 13px;
+            color: #fbbf24;
+            padding: 10px 16px;
+            border-radius: 10px;
+        }
+        /* responsive */
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            .list-box { width: 100%; height: 200px; border-left: none; border-bottom: 1px solid rgba(255,255,255,0.05); }
+            .list-box h1 { margin-bottom: 10px; }
+            .t-card { padding: 12px; margin: 6px; }
+            #main .p-8 { padding: 12px; }
+            #main .border-b { flex-wrap: wrap; gap: 8px; }
+        }
     </style>
 </head>
 <body>
@@ -22,14 +66,20 @@
 
     <div class="flex-1 flex flex-col">
         <div id="main" class="hidden flex-1 flex flex-col">
-            <div class="p-8 border-b border-white/5 flex justify-between items-center bg-white/2">
-                <div id="uInfo">--</div>
-                <div class="flex gap-3">
-                    <input type="number" id="a" placeholder="المبلغ" class="bg-black border border-white/10 p-2 w-24 rounded">
-                    <input type="number" id="f" placeholder="العمولة" class="bg-black border border-white/10 p-2 w-24 rounded">
-                    <button onclick="upd()" class="bg-green-600 px-4 rounded text-xs">تحديث التكلفة</button>
-                    <button onclick="askPay()" class="bg-yellow-500 text-black px-4 rounded text-xs font-black">طلب الدفع</button>
+            <div class="p-8 border-b border-white/5 flex flex-wrap items-center gap-3 bg-white/2">
+                <div id="uInfo" class="text-sm font-bold">--</div>
+                
+                <!-- Toggle:谁来支付 -->
+                <div class="toggle-wrapper">
+                    <label id="lblClient" class="active" onclick="setPayer('client')">العميل يدفع</label>
+                    <span class="text-gray-600 text-xs">|</span>
+                    <label id="lblMediator" class="inactive" onclick="setPayer('mediator')">الوسيط يدفع</label>
                 </div>
+
+                <input type="number" id="a" placeholder="المبلغ" class="bg-black border border-white/10 p-2 w-20 rounded text-sm">
+                <input type="number" id="f" placeholder="العمولة" class="bg-black border border-white/10 p-2 w-20 rounded text-sm">
+                <button onclick="upd()" class="bg-green-600 px-4 py-2 rounded text-xs font-bold">تحديث التكلفة</button>
+                <button onclick="askPay()" class="bg-yellow-500 text-black px-4 py-2 rounded text-xs font-black">طلب الدفع</button>
             </div>
             <div id="chat" class="flex-1 p-8 overflow-y-auto flex flex-col gap-3"></div>
             <div class="p-6 bg-black flex gap-3">
@@ -44,6 +94,21 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
         let sel = null;
+        let payer = 'client'; // 'client' or 'mediator'
+
+        // Toggle payer selection
+        function setPayer(who) {
+            payer = who;
+            const cl = document.getElementById('lblClient');
+            const md = document.getElementById('lblMediator');
+            if (who === 'client') {
+                cl.className = 'active';
+                md.className = 'inactive';
+            } else {
+                cl.className = 'inactive';
+                md.className = 'active';
+            }
+        }
 
         db.ref('tickets').on('value', snap => {
             const list = document.getElementById('tkList');
@@ -52,7 +117,7 @@
                 const d = t.val();
                 const div = document.createElement('div');
                 div.className = `t-card ${sel === t.key ? 'selected' : ''}`;
-                div.innerHTML = `<div class="font-bold text-sm">${d.userEmail}</div><div class="text-[10px] text-gray-500">${d.product}</div>`;
+                div.innerHTML = `<div class="font-bold text-sm">${escapeHtml(d.userEmail || '')}</div><div class="text-[10px] text-gray-500">${escapeHtml(d.product || '')}</div>`;
                 div.onclick = () => { sel = t.key; load(t.key, d); };
                 list.appendChild(div);
             });
@@ -60,23 +125,78 @@
 
         function load(k, d) {
             document.getElementById('main').classList.remove('hidden');
-            document.getElementById('uInfo').innerText = d.userEmail;
+            document.getElementById('uInfo').innerText = d.userEmail || '--';
+            db.ref('tickets/'+k+'/messages').off();
             db.ref('tickets/'+k+'/messages').on('value', ms => {
                 const cv = document.getElementById('chat'); cv.innerHTML = "";
                 ms.forEach(m => {
                     const v = m.val();
                     const div = document.createElement('div');
-                    div.className = `p-3 rounded-lg max-w-[70%] ${v.sender === 'admin' ? 'bg-yellow-500/10 border-r-2 border-yellow-500 self-start' : 'bg-white/5 self-end'}`;
-                    div.innerText = v.text;
+                    // رسالة نظام الدفع
+                    if (v.system === true) {
+                        div.className = 'sys-msg';
+                        div.innerText = v.text;
+                    } else {
+                        div.className = `p-3 rounded-lg max-w-[70%] ${v.sender === 'admin' ? 'bg-yellow-500/10 border-r-2 border-yellow-500 self-start' : 'bg-white/5 self-end'}`;
+                        div.innerText = v.text;
+                    }
                     cv.appendChild(div);
                 });
                 cv.scrollTop = cv.scrollHeight;
             });
         }
 
-        function upd() { db.ref('tickets/'+sel).update({ amount: document.getElementById('a').value, fee: document.getElementById('f').value, status: 'تم تحديد التكلفة' }); }
-        function askPay() { db.ref('tickets/'+sel).update({ action: 'showPay', status: 'بانتظار التحويل المالي' }); }
-        function send() { const v = document.getElementById('msg').value; if(v) { db.ref('tickets/'+sel+'/messages').push({ text: v, sender: 'admin' }); document.getElementById('msg').value = ""; } }
+        function upd() {
+            db.ref('tickets/'+sel).update({
+                amount: document.getElementById('a').value,
+                fee: document.getElementById('f').value,
+                status: 'تم تحديد التكلفة'
+            });
+        }
+
+        function askPay() {
+            const msgRef = db.ref('tickets/'+sel+'/messages');
+            const ticketRef = db.ref('tickets/'+sel);
+
+            if (payer === 'client') {
+                // العميل يدفع - مثل السلوك الأصلي
+                ticketRef.update({
+                    action: 'showPay',
+                    status: 'بانتظار التحويل المالي'
+                });
+            } else {
+                // الوسيط يدفع - نضيف رسالة نظام في الشات
+                ticketRef.update({
+                    action: 'showPay',
+                    status: 'تم الدفع من الطرف الأخر'
+                });
+                msgRef.push({
+                    text: 'تم الدفع من الطرف الأخر',
+                    sender: 'admin',
+                    system: true,
+                    timestamp: Date.now()
+                });
+            }
+        }
+
+        function send() {
+            const v = document.getElementById('msg').value;
+            if(v) {
+                db.ref('tickets/'+sel+'/messages').push({
+                    text: v,
+                    sender: 'admin',
+                    timestamp: Date.now()
+                });
+                document.getElementById('msg').value = "";
+            }
+        }
+
+        // Helper: escape HTML to prevent XSS
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
     </script>
 </body>
 </html>
