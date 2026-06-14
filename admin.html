@@ -7,55 +7,21 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
-        body { background: #020306; color: white; display: flex; height: 100vh; font-family: sans-serif; }
+        body { background: #020306; color: white; display: flex; height: 100vh; font-family: sans-serif; overflow: hidden; }
         .list-box { width: 350px; background: #080a12; border-left: 1px solid rgba(255,255,255,0.05); }
-        .t-card { background: rgba(255,255,255,0.03); border: 1px solid transparent; padding: 20px; cursor: pointer; border-radius: 12px; margin: 10px; transition: 0.2s; }
+        .t-card { background: rgba(255,255,255,0.03); border: 1px solid transparent; padding: 20px; cursor: pointer; border-radius: 12px; margin: 10px; transition: 0.2s; position: relative; }
         .t-card:hover { background: rgba(251, 191, 36, 0.05); }
         .selected { border-color: #fbbf24; background: rgba(251, 191, 36, 0.08); }
-        /* Toggle switch */
-        .toggle-wrapper {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            background: rgba(255,255,255,0.03);
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 10px;
-            padding: 6px 14px;
-        }
-        .toggle-wrapper label {
-            font-size: 12px;
-            cursor: pointer;
-            padding: 6px 14px;
-            border-radius: 8px;
-            transition: 0.2s;
-            user-select: none;
-        }
-        .toggle-wrapper label.active {
-            background: #fbbf24;
-            color: black;
-            font-weight: bold;
-        }
-        .toggle-wrapper label.inactive {
-            color: #777;
-        }
-        .sys-msg {
-            background: rgba(251, 191, 36, 0.08);
-            border: 1px solid rgba(251, 191, 36, 0.2);
-            text-align: center;
-            font-size: 13px;
-            color: #fbbf24;
-            padding: 10px 16px;
-            border-radius: 10px;
-        }
-        /* responsive */
-        @media (max-width: 768px) {
-            body { flex-direction: column; }
-            .list-box { width: 100%; height: 200px; border-left: none; border-bottom: 1px solid rgba(255,255,255,0.05); }
-            .list-box h1 { margin-bottom: 10px; }
-            .t-card { padding: 12px; margin: 6px; }
-            #main .p-8 { padding: 12px; }
-            #main .border-b { flex-wrap: wrap; gap: 8px; }
-        }
+        
+        .toggle-wrapper { display: flex; align-items: center; gap: 5px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 4px; }
+        .toggle-wrapper label { font-size: 11px; cursor: pointer; padding: 6px 12px; border-radius: 8px; transition: 0.2s; user-select: none; }
+        .toggle-wrapper label.active { background: #fbbf24; color: black; font-weight: bold; }
+        .toggle-wrapper label.inactive { color: #555; }
+
+        .sys-msg { background: rgba(251, 191, 36, 0.08); border: 1px solid rgba(251, 191, 36, 0.2); text-align: center; font-size: 13px; color: #fbbf24; padding: 10px; border-radius: 10px; margin: 10px 0; }
+        
+        #chat::-webkit-scrollbar { width: 5px; }
+        #chat::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
     </style>
 </head>
 <body>
@@ -64,27 +30,34 @@
         <div id="tkList" class="flex-1 overflow-y-auto"></div>
     </div>
 
-    <div class="flex-1 flex flex-col">
+    <div class="flex-1 flex flex-col relative">
         <div id="main" class="hidden flex-1 flex flex-col">
-            <div class="p-8 border-b border-white/5 flex flex-wrap items-center gap-3 bg-white/2">
-                <div id="uInfo" class="text-sm font-bold">--</div>
-                
-                <!-- Toggle:谁来支付 -->
-                <div class="toggle-wrapper">
-                    <label id="lblClient" class="active" onclick="setPayer('client')">العميل يدفع</label>
-                    <span class="text-gray-600 text-xs">|</span>
-                    <label id="lblMediator" class="inactive" onclick="setPayer('mediator')">الوسيط يدفع</label>
+            <!-- Header -->
+            <div class="p-6 border-b border-white/5 flex flex-wrap items-center justify-between gap-4 bg-white/2">
+                <div class="flex items-center gap-4">
+                    <div id="uInfo" class="text-sm font-bold text-gray-300">--</div>
+                    <div class="toggle-wrapper">
+                        <label id="lblClient" class="active" onclick="setPayer('client')">العميل يدفع</label>
+                        <label id="lblMediator" class="inactive" onclick="setPayer('mediator')">الوسيط يدفع</label>
+                    </div>
                 </div>
-
-                <input type="number" id="a" placeholder="المبلغ" class="bg-black border border-white/10 p-2 w-20 rounded text-sm">
-                <input type="number" id="f" placeholder="العمولة" class="bg-black border border-white/10 p-2 w-20 rounded text-sm">
-                <button onclick="upd()" class="bg-green-600 px-4 py-2 rounded text-xs font-bold">تحديث التكلفة</button>
-                <button onclick="askPay()" class="bg-yellow-500 text-black px-4 py-2 rounded text-xs font-black">طلب الدفع</button>
+                
+                <div class="flex gap-2">
+                    <input type="number" id="a" placeholder="المبلغ" class="bg-black border border-white/10 p-2 w-20 rounded text-sm outline-none focus:border-yellow-500">
+                    <input type="number" id="f" placeholder="العمولة" class="bg-black border border-white/10 p-2 w-20 rounded text-sm outline-none focus:border-yellow-500">
+                    <button onclick="upd()" class="bg-green-600 px-3 py-2 rounded text-[10px] font-bold uppercase">تحديث</button>
+                    <button onclick="askPay()" class="bg-yellow-500 text-black px-4 py-2 rounded text-[10px] font-black uppercase">طلب الدفع</button>
+                    <button onclick="delTicket()" class="bg-red-600/20 text-red-500 border border-red-600/30 px-3 py-2 rounded text-[10px] font-bold hover:bg-red-600 hover:text-white transition">حذف التذكرة</button>
+                </div>
             </div>
-            <div id="chat" class="flex-1 p-8 overflow-y-auto flex flex-col gap-3"></div>
-            <div class="p-6 bg-black flex gap-3">
-                <input id="msg" type="text" class="flex-1 bg-white/5 p-4 rounded-xl outline-none" placeholder="اكتب ردك...">
-                <button onclick="send()" class="bg-yellow-500 text-black px-10 rounded-xl font-bold">إرسال</button>
+
+            <!-- Chat -->
+            <div id="chat" class="flex-1 p-8 overflow-y-auto flex flex-col gap-3 bg-[#04050a]"></div>
+
+            <!-- Input -->
+            <div class="p-6 bg-black border-t border-white/5 flex gap-3">
+                <input id="msg" type="text" class="flex-1 bg-white/5 p-4 rounded-xl outline-none focus:bg-white/10 transition" placeholder="اكتب ردك هنا...">
+                <button onclick="send()" class="bg-yellow-500 text-black px-10 rounded-xl font-bold hover:scale-105 active:scale-95 transition">إرسال</button>
             </div>
         </div>
     </div>
@@ -94,22 +67,15 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
         let sel = null;
-        let payer = 'client'; // 'client' or 'mediator'
+        let payer = 'client';
 
-        // Toggle payer selection
         function setPayer(who) {
             payer = who;
-            const cl = document.getElementById('lblClient');
-            const md = document.getElementById('lblMediator');
-            if (who === 'client') {
-                cl.className = 'active';
-                md.className = 'inactive';
-            } else {
-                cl.className = 'inactive';
-                md.className = 'active';
-            }
+            document.getElementById('lblClient').className = who === 'client' ? 'active' : 'inactive';
+            document.getElementById('lblMediator').className = who === 'mediator' ? 'active' : 'inactive';
         }
 
+        // جلب الرسائل والتذاكر
         db.ref('tickets').on('value', snap => {
             const list = document.getElementById('tkList');
             list.innerHTML = "";
@@ -117,7 +83,10 @@
                 const d = t.val();
                 const div = document.createElement('div');
                 div.className = `t-card ${sel === t.key ? 'selected' : ''}`;
-                div.innerHTML = `<div class="font-bold text-sm">${escapeHtml(d.userEmail || '')}</div><div class="text-[10px] text-gray-500">${escapeHtml(d.product || '')}</div>`;
+                div.innerHTML = `
+                    <div class="font-bold text-sm text-gray-200">${d.userEmail || 'بدون إيميل'}</div>
+                    <div class="text-[10px] text-gray-500 mt-1">${d.product || 'منتج غير محدد'}</div>
+                `;
                 div.onclick = () => { sel = t.key; load(t.key, d); };
                 list.appendChild(div);
             });
@@ -125,19 +94,20 @@
 
         function load(k, d) {
             document.getElementById('main').classList.remove('hidden');
-            document.getElementById('uInfo').innerText = d.userEmail || '--';
-            db.ref('tickets/'+k+'/messages').off();
-            db.ref('tickets/'+k+'/messages').on('value', ms => {
+            document.getElementById('uInfo').innerText = d.userEmail;
+            
+            const chatRef = db.ref('tickets/'+k+'/messages');
+            chatRef.off(); // إزالة المستمعات القديمة
+            chatRef.on('value', ms => {
                 const cv = document.getElementById('chat'); cv.innerHTML = "";
                 ms.forEach(m => {
                     const v = m.val();
                     const div = document.createElement('div');
-                    // رسالة نظام الدفع
-                    if (v.system === true) {
+                    if (v.system) {
                         div.className = 'sys-msg';
                         div.innerText = v.text;
                     } else {
-                        div.className = `p-3 rounded-lg max-w-[70%] ${v.sender === 'admin' ? 'bg-yellow-500/10 border-r-2 border-yellow-500 self-start' : 'bg-white/5 self-end'}`;
+                        div.className = `p-3 rounded-2xl max-w-[80%] text-sm ${v.sender === 'admin' ? 'bg-yellow-500 text-black self-start font-medium' : 'bg-white/5 text-white self-end border border-white/5'}`;
                         div.innerText = v.text;
                     }
                     cv.appendChild(div);
@@ -147,6 +117,7 @@
         }
 
         function upd() {
+            if(!sel) return;
             db.ref('tickets/'+sel).update({
                 amount: document.getElementById('a').value,
                 fee: document.getElementById('f').value,
@@ -155,47 +126,44 @@
         }
 
         function askPay() {
-            const msgRef = db.ref('tickets/'+sel+'/messages');
-            const ticketRef = db.ref('tickets/'+sel);
+            if(!sel) return;
+            const tRef = db.ref('tickets/'+sel);
+            const mRef = db.ref('tickets/'+sel+'/messages');
 
             if (payer === 'client') {
-                // العميل يدفع - مثل السلوك الأصلي
-                ticketRef.update({
-                    action: 'showPay',
-                    status: 'بانتظار التحويل المالي'
+                // العميل يدفع: تظهر له خانة "ادفع الآن"
+                tRef.update({ 
+                    action: 'showPay', 
+                    status: 'بانتظار التحويل المالي',
+                    paidBy: 'client' 
                 });
             } else {
-                // الوسيط يدفع - نضيف رسالة نظام في الشات
-                ticketRef.update({
-                    action: 'showPay',
-                    status: 'تم الدفع من الطرف الأخر'
+                // الوسيط يدفع: تخفي خانة الدفع وتظهر رسالة "تم الدفع من الطرف الأخر"
+                tRef.update({ 
+                    action: 'hidePay', // كود العميل يجب أن يتعرف على هذا الأمر ليخفي الزر
+                    status: 'تم الدفع من الطرف الأخر',
+                    paidBy: 'mediator'
                 });
-                msgRef.push({
-                    text: 'تم الدفع من الطرف الأخر',
-                    sender: 'admin',
-                    system: true,
-                    timestamp: Date.now()
+                mRef.push({ text: 'تم الدفع من الطرف الأخر ✅', sender: 'admin', system: true });
+            }
+        }
+
+        function delTicket() {
+            if(!sel) return;
+            if(confirm('هل أنت متأكد من حذف هذه التذكرة نهائياً؟')) {
+                db.ref('tickets/'+sel).remove().then(() => {
+                    document.getElementById('main').classList.add('hidden');
+                    sel = null;
                 });
             }
         }
 
         function send() {
             const v = document.getElementById('msg').value;
-            if(v) {
-                db.ref('tickets/'+sel+'/messages').push({
-                    text: v,
-                    sender: 'admin',
-                    timestamp: Date.now()
-                });
+            if(v && sel) {
+                db.ref('tickets/'+sel+'/messages').push({ text: v, sender: 'admin', time: Date.now() });
                 document.getElementById('msg').value = "";
             }
-        }
-
-        // Helper: escape HTML to prevent XSS
-        function escapeHtml(str) {
-            const div = document.createElement('div');
-            div.textContent = str;
-            return div.innerHTML;
         }
     </script>
 </body>
